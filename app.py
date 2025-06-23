@@ -1,59 +1,39 @@
 import streamlit as st
-import joblib
-import spacy
-import os
-import urllib.request
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+import torch
+import numpy as np
 
-# URL of your hosted .pkl file (for example, from Google Drive or Dropbox)
-MODEL_URL = "https://drive.google.com/file/d/1oc5v81ClYCImgJl4dIDUVkeeULZTTtuZ/view?usp=drive_link"
+# Load model + tokenizer from Hugging Face Hub
+MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
-# Download model if not already downloaded
-if not os.path.exists("sentiment_rf_pipeline.pkl"):
-    urllib.request.urlretrieve(MODEL_URL, "sentiment_rf_pipeline.pkl")
+@st.cache_resource
+def load_model():
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+    return tokenizer, model
 
-# Load the model
-model = joblib.load("sentiment_rf_pipeline.pkl")
+tokenizer, model = load_model()
 
+# Label mapping (from HuggingFace cardiffnlp model)
+labels = ['Negative', 'Neutral', 'Positive']
 
+st.title("Twitter Sentiment Analysis (Roberta-base)")
 
-# Load spaCy model
-nlp = spacy.load("en_core_web_sm")
+user_input = st.text_area("Enter a tweet:")
 
-# Load trained model pipeline
-model = joblib.load("sentiment_rf_pipeline.pkl")
-
-# Preprocessing function
-def preprocess(text):
-    doc = nlp(text)
-    filtered_tokens = []
-    for token in doc:
-        if token.is_stop or token.is_punct:
-            continue
-        filtered_tokens.append(token.lemma_)
-    return " ".join(filtered_tokens)
-
-# Class labels
-classes = ['Irrelevant', 'Natural', 'Negative', 'Positive']
-
-# Streamlit UI
-st.title("Twitter Sentiment Analysis")
-
-st.write("Enter a tweet or text below to analyze its sentiment:")
-
-# User input
-user_input = st.text_area("Tweet Text", height=150)
-
-# Predict button
 if st.button("Analyze Sentiment"):
-    if user_input.strip() == "":
-        st.warning("Please enter some text.")
-    else:
-        # Preprocess
-        processed_input = [preprocess(user_input)]
-
-        # Predict
-        pred = model.predict(processed_input)
-        predicted_label = classes[pred[0]]
-
-        # Show result
-        st.success(f"Predicted Sentiment: **{predicted_label}**")
+    # Preprocess text (tokenization)
+    inputs = tokenizer(user_input, return_tensors="pt", truncation=True)
+    
+    # Run prediction
+    with torch.no_grad():
+        outputs = model(**inputs)
+        scores = outputs.logits[0].softmax(dim=0).cpu().numpy()
+    
+    # Display results
+    for i, (label, score) in enumerate(zip(labels, scores)):
+        st.write(f"{label}: {score:.4f}")
+    
+    # Best prediction
+    best_idx = np.argmax(scores)
+    st.subheader(f"Predicted Sentiment: {labels[best_idx]}")
