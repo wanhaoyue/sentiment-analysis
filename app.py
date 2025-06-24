@@ -47,6 +47,6 @@ if st.button("Analyze Sentiment"):
     st.subheader("Confidence Scores")
     for label, score in zip(labels, scores):
         st.write(f"{label}: {score:.4f}")
-        st.progress(score)
+        st.progress(float(score))
 
     st.caption(f"Model: {MODEL_NAME}")
