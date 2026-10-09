@@ -23,6 +23,6 @@ The app is built with **Streamlit** and is deployed on **Streamlit Cloud** — n
 ## 🌐 How to Run Locally
 ```bash
 git clone https://github.com/wanhaoyue/sentiment-analysis.git
-cd twitter-sentiment-streamlit
+cd sentiment-analysis
 pip install -r requirements.txt
 streamlit run app.py
